@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="bs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Put do tvog poklona</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-hearts" id="bgHearts" aria-hidden="true"></div>
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="progress-track" aria-label="Napredak">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <button class="music-btn" id="musicBtn" type="button">Muzika: isključena</button>
+      </header>
+
+      <main class="stage" id="stage">
+        <section class="card start-card active" id="startCard">
+          <h1>Put do tvog poklona</h1>
+          <p>Napravio sam nešto za tebe… prodji kroz ovo i dodji do poklona ❤️</p>
+          <button id="startBtn" class="primary-btn" type="button">Kreni</button>
+        </section>
+
+        <section class="card step-card hidden" id="stepCard">
+          <p class="step-counter" id="stepCounter">Korak 1 od 8</p>
+          <div class="step-goal-wrap" aria-hidden="true">
+            <div class="step-goal-track">
+              <div class="step-goal-fill" id="stepGoalFill"></div>
+            </div>
+            <p class="step-goal-label">Još malo do poklona…</p>
+          </div>
+          <h2 class="step-main-question" id="stepTitle"></h2>
+          <p class="romantic-copy step-sub hidden" id="stepMessage"></p>
+          <div class="step-content" id="stepContent"></div>
+          <p class="hint-text" id="hintText"></p>
+        </section>
+
+        <section class="gift-visual-wrap" aria-hidden="true">
+          <div class="gift-visual" id="giftVisual">🎁</div>
+          <p class="gift-caption">Tvoj poklon ti se približava…</p>
+        </section>
+
+        <section class="card final-card hidden" id="finalCard">
+          <h2>Još jedna stvar</h2>
+          <p>
+            Nije bitno jesi li sve pogodila… i ovako bi ovo dobila.
+          </p>
+          <button id="openGiftBtn" class="primary-btn" type="button">Otvori svoj poklon</button>
+          <div class="big-reveal hidden" id="bigReveal">
+            <h3 id="finalHeadline"></h3>
+            <p>
+              Ti si moja omiljena priča, moje sigurno mjesto i najslađa avantura.
+              Hvala ti što postojiš. ❤️
+            </p>
+          </div>
+          <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+        </section>
+      </main>
+    </div>
+    <script src="./script.js"></script>
+  </body>
+</html>

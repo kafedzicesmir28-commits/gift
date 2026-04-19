@@ -342,7 +342,7 @@ function renderQHowICallHer() {
     btn.textContent = option.label;
     btn.addEventListener("click", () => {
       if (option.key === "sve") {
-        nodes.hintText.textContent = "Tako je princezoo ❤️";
+        nodes.hintText.textContent = "Tako jee ❤️";
         scheduleNextStep();
       } else {
         nodes.hintText.textContent =

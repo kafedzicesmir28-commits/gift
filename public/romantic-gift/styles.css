@@ -53,16 +53,6 @@ body {
   transition: width 450ms ease;
 }
 
-.music-btn {
-  border: 0;
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: #fff;
-  color: var(--soft);
-  box-shadow: var(--shadow);
-  font-weight: 700;
-}
-
 .stage {
   display: grid;
   place-items: center;
@@ -566,6 +556,114 @@ textarea:focus {
 .rate-btn:disabled {
   opacity: 0.85;
   cursor: default;
+}
+
+.memory-step {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.memory-meta {
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #7a5566;
+}
+
+.memory-turn {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.memory-scores {
+  margin: 0;
+}
+
+.memory-grid-host {
+  width: 100%;
+}
+
+.memory-error {
+  margin: 0;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #8b5a6a;
+}
+
+.memory-error code {
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.memory-card {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #ffe8f2;
+  box-shadow: 0 2px 10px rgba(255, 127, 183, 0.18);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.memory-card:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.memory-card:disabled {
+  cursor: default;
+}
+
+.memory-card--matched {
+  box-shadow: 0 0 0 2px #7fd9a8;
+  opacity: 0.96;
+}
+
+.memory-card-inner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.memory-card-back,
+.memory-card-front {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.25s ease;
+}
+
+.memory-card-back {
+  font-size: 1.35rem;
+  background: linear-gradient(145deg, #ffd6ea, #ffc3dd);
+}
+
+.memory-card-front {
+  background-size: cover;
+  background-position: center;
+}
+
+.memory-card:not(.memory-card--open) .memory-card-front {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.memory-card.memory-card--open .memory-card-back {
+  opacity: 0;
 }
 
 @media (min-width: 768px) {

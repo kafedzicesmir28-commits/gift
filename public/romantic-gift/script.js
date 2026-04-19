@@ -1,13 +1,11 @@
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 10;
 const PUZZLE_GRID = 5;
 const PUZZLE_EXPORT_PX = 500;
+/** Pauza nakon poruke ispod prije prelaska na sljedeće pitanje (ms) */
+const STEP_PAUSE_AFTER_MS = 1600;
 
 const state = {
   currentStep: 0,
-  musicOn: false,
-  audioContext: null,
-  musicTimer: null,
-  puzzleObjectUrl: null,
   _mazeKeyHandler: null,
 };
 
@@ -28,9 +26,12 @@ const nodes = {
   bigReveal: document.getElementById("bigReveal"),
   finalHeadline: document.getElementById("finalHeadline"),
   confettiCanvas: document.getElementById("confettiCanvas"),
-  musicBtn: document.getElementById("musicBtn"),
   bgHearts: document.getElementById("bgHearts"),
 };
+
+function scheduleNextStep() {
+  setTimeout(moveToNextStep, STEP_PAUSE_AFTER_MS);
+}
 
 const stepData = [
   {
@@ -54,12 +55,23 @@ const stepData = [
     render: renderQWhenYouHappy,
   },
   {
-    title: "Pored tebe se osjećam: (odaberi oba tačna odgovora)",
+    title: "Šta te najviše usreći?",
+    message: () => "",
+    render: renderQWhatMakesYouHappy,
+  },
+  {
+    title: "Pored tebe se osjećam: (odaberi više tačnih odgovora)",
     message: () => "",
     render: renderQFeelBeside,
   },
   {
-    title: "Pomozi 🧸 medu da stigne do 🐻",
+    title: "Memory za nas — 8 parova",
+    message: () =>
+      "Blizu si lozinke....",
+    render: renderMemoryStep,
+  },
+  {
+    title: "Pomozi 🧸 medi da stigne do 🐻",
     message: () => "",
     render: renderMazeStep,
   },
@@ -222,11 +234,17 @@ function generateMazeLines(wantCols, wantRows) {
 function init() {
   nodes.startBtn.addEventListener("click", startJourney);
   nodes.openGiftBtn.addEventListener("click", revealGift);
-  nodes.musicBtn.addEventListener("click", toggleMusic);
 
   createFloatingHearts();
   setProgress(0);
   updateGiftDistance(0);
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("autostart") === "1") {
+    nodes.startCard.classList.add("hidden");
+    nodes.stepCard.classList.remove("hidden");
+    startJourney();
+  }
 }
 
 function startJourney() {
@@ -295,7 +313,7 @@ function renderQHowSheCallsMe() {
       if (option.correct) {
         nodes.hintText.textContent = "Tačno! Medo ❤️";
         pulseSuccess();
-        setTimeout(moveToNextStep, 500);
+        scheduleNextStep();
       } else {
         nodes.hintText.textContent = "Pokušaj opet";
       }
@@ -324,8 +342,8 @@ function renderQHowICallHer() {
     btn.textContent = option.label;
     btn.addEventListener("click", () => {
       if (option.key === "sve") {
-        nodes.hintText.textContent = "Tako je — sve to i još više ❤️";
-        setTimeout(moveToNextStep, 500);
+        nodes.hintText.textContent = "Tako je princezoo ❤️";
+        scheduleNextStep();
       } else {
         nodes.hintText.textContent =
           "Taj mi je nadimak posebno lijep, ali pokušaj opet…";
@@ -363,7 +381,7 @@ function renderQTiSiMoje() {
     const val = normalizeWord(document.getElementById("tiSiInput").value);
     if (ok.includes(val)) {
       nodes.hintText.textContent = "Tačno — ti si moje najmoje 💗";
-      setTimeout(moveToNextStep, 500);
+      scheduleNextStep();
     } else {
       nodes.hintText.textContent = "Pokušaj opet";
     }
@@ -388,7 +406,7 @@ function renderQWhenYouHappy() {
     btn.addEventListener("click", () => {
       if (option.correct) {
         nodes.hintText.textContent = "Da — tvoja sreća je i moja ❤️";
-        setTimeout(moveToNextStep, 500);
+        scheduleNextStep();
       } else {
         nodes.hintText.textContent = "Pokušaj opet";
       }
@@ -430,7 +448,7 @@ function renderQFeelBeside() {
       list.querySelectorAll(".option-btn").forEach((b) => {
         b.disabled = true;
       });
-      setTimeout(moveToNextStep, 550);
+      scheduleNextStep();
     } else if (picked.size === 1) {
       nodes.hintText.textContent = "Super — odaberi još jedan tačan odgovor.";
     }
@@ -459,6 +477,247 @@ function renderQFeelBeside() {
   });
 
   nodes.stepContent.appendChild(list);
+}
+
+function renderQWhatMakesYouHappy() {
+  const options = [
+    { label: "Šetnja", correct: false },
+    { label: "Kiša", correct: false },
+    { label: "Kinder jaje", correct: true },
+  ];
+
+  const list = document.createElement("div");
+  list.className = "option-list";
+
+  options.forEach((option) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "option-btn";
+    btn.textContent = option.label;
+    btn.addEventListener("click", () => {
+      if (option.correct) {
+        nodes.hintText.textContent = "Tačno — Kinder jaje 🍫❤️";
+        scheduleNextStep();
+      } else {
+        nodes.hintText.textContent = "Pokušaj opet";
+      }
+    });
+    list.appendChild(btn);
+  });
+
+  nodes.stepContent.appendChild(list);
+}
+
+function loadImageUrl(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(src);
+    img.onerror = () => reject(new Error("fail"));
+    img.src = src;
+  });
+}
+
+async function loadMemoryImageUrls() {
+  const urls = [];
+  for (let i = 1; i <= 8; i += 1) {
+    let found = null;
+    for (const ext of ["jpg", "jpeg", "png", "webp"]) {
+      try {
+        const u = `./memory/${i}.${ext}`;
+        await loadImageUrl(u);
+        found = u;
+        break;
+      } catch {
+        /* try next ext */
+      }
+    }
+    if (!found) return { ok: false, missing: i };
+    urls.push(found);
+  }
+  return { ok: true, urls };
+}
+
+function renderMemoryStep() {
+  const root = document.createElement("div");
+  root.className = "memory-step";
+
+  const status = document.createElement("div");
+  status.className = "memory-meta";
+  status.innerHTML =
+    '<p class="memory-turn" id="memoryTurn"></p><p class="memory-scores" id="memoryScores"></p>';
+
+  const gridHost = document.createElement("div");
+  gridHost.className = "memory-grid-host";
+  gridHost.id = "memoryGridHost";
+
+  root.appendChild(status);
+  root.appendChild(gridHost);
+  nodes.stepContent.appendChild(root);
+
+  const turnEl = root.querySelector("#memoryTurn");
+  const scoresEl = root.querySelector("#memoryScores");
+
+  (async () => {
+    const loaded = await loadMemoryImageUrls();
+    if (!loaded.ok) {
+      gridHost.innerHTML = `<p class="memory-error">U folder <code>memory/</code> (pored <code>index.html</code>) dodaj slike nazvane <strong>1</strong> do <strong>8</strong>, npr. <code>1.jpg</code> … <code>8.jpg</code> (ili .png / .webp). Nedostaje slika broj <strong>${loaded.missing}</strong>.</p>`;
+      nodes.hintText.textContent =
+        "Kad slike budu na mjestu, osvježi stranicu i nastavi od ovog koraka.";
+      return;
+    }
+
+    const game = {
+      urls: loaded.urls,
+      deck: [],
+      flipped: [],
+      matched: new Set(),
+      lock: false,
+      currentPlayer: "her",
+      scores: { her: 0, him: 0 },
+      ended: false,
+    };
+
+    function buildDeckFromUrls(urls) {
+      const deck = [];
+      urls.forEach((url, pairId) => {
+        deck.push({ pairId, url });
+        deck.push({ pairId, url });
+      });
+      shuffleInPlace(deck);
+      return deck;
+    }
+
+    function updateMeta() {
+      const turnLabel =
+        game.currentPlayer === "her"
+          ? "Na redu: ti (ona) — okreni dvije karte."
+          : "Na redu: ja — okreni dvije karte.";
+      turnEl.textContent = turnLabel;
+      scoresEl.textContent = `Ti (ona): ${game.scores.her} parova  —  Ja: ${game.scores.him} parova`;
+    }
+
+    function cardIsFaceUp(idx) {
+      return game.matched.has(idx) || game.flipped.includes(idx);
+    }
+
+    function renderGrid() {
+      gridHost.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.className = "memory-grid";
+      game.deck.forEach((cell, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "memory-card";
+        btn.dataset.idx = String(idx);
+        if (game.matched.has(idx)) btn.classList.add("memory-card--matched");
+        if (cardIsFaceUp(idx)) btn.classList.add("memory-card--open");
+
+        const inner = document.createElement("span");
+        inner.className = "memory-card-inner";
+
+        const back = document.createElement("span");
+        back.className = "memory-card-back";
+        back.setAttribute("aria-hidden", "true");
+        back.textContent = "❤";
+
+        const front = document.createElement("span");
+        front.className = "memory-card-front";
+        front.style.backgroundImage = `url("${cell.url}")`;
+
+        inner.appendChild(back);
+        inner.appendChild(front);
+        btn.appendChild(inner);
+
+        if (game.matched.has(idx) || game.ended) {
+          btn.disabled = true;
+        } else {
+          btn.addEventListener("click", () => onPick(idx));
+        }
+        grid.appendChild(btn);
+      });
+      gridHost.appendChild(grid);
+    }
+
+    function resetRound() {
+      game.deck = buildDeckFromUrls(game.urls);
+      game.flipped = [];
+      game.matched = new Set();
+      game.scores = { her: 0, him: 0 };
+      game.currentPlayer = "her";
+      game.lock = false;
+      game.ended = false;
+      updateMeta();
+      renderGrid();
+    }
+
+    function finishRound() {
+      if (game.scores.her > game.scores.him) {
+        game.ended = true;
+        nodes.hintText.textContent = "Pobijedila si — idemo dalje! ❤️";
+        updateMeta();
+        renderGrid();
+        scheduleNextStep();
+        return;
+      }
+      nodes.hintText.textContent =
+        "Ova runda nije tvoja pobjeda — igramo ponovo od nule.";
+      setTimeout(() => {
+        resetRound();
+        nodes.hintText.textContent = "Nova runda — ti prva biraš.";
+      }, STEP_PAUSE_AFTER_MS);
+    }
+
+    function onPick(idx) {
+      if (game.lock || game.ended) return;
+      if (game.matched.has(idx) || game.flipped.includes(idx)) return;
+      if (game.flipped.length >= 2) return;
+
+      game.flipped.push(idx);
+      updateMeta();
+      renderGrid();
+
+      if (game.flipped.length < 2) return;
+
+      const [a, b] = game.flipped;
+      const pa = game.deck[a].pairId;
+      const pb = game.deck[b].pairId;
+
+      if (pa === pb) {
+        game.matched.add(a);
+        game.matched.add(b);
+        game.flipped = [];
+        game.scores[game.currentPlayer] += 1;
+        nodes.hintText.textContent =
+          game.currentPlayer === "her"
+            ? "Par! Još jedan potez tebi."
+            : "Par! Još jedan potez meni.";
+        if (game.matched.size === 16) {
+          finishRound();
+        } else {
+          updateMeta();
+          renderGrid();
+        }
+        return;
+      }
+
+      game.lock = true;
+      setTimeout(() => {
+        game.flipped = [];
+        game.currentPlayer = game.currentPlayer === "her" ? "him" : "her";
+        game.lock = false;
+        nodes.hintText.textContent =
+          game.currentPlayer === "her"
+            ? "Nije par — sada si ti na redu."
+            : "Nije par — sada sam ja na redu.";
+        updateMeta();
+        renderGrid();
+      }, 900);
+    }
+
+    game.deck = buildDeckFromUrls(game.urls);
+    updateMeta();
+    renderGrid();
+  })();
 }
 
 function parseMaze(lines) {
@@ -500,7 +759,7 @@ function renderMazeStep() {
   const sub = document.createElement("p");
   sub.className = "step-inline-hint";
   sub.textContent =
-    "Ima puno hodnika i ćorsokaka — možeš zalutati pa se vratiti. Strelice ili dugmad ispod.";
+    "Ima puno hodnika, požuri nađi put do mede kako ne bi bio tužan...";
   wrap.appendChild(sub);
 
   const viewport = document.createElement("div");
@@ -565,9 +824,9 @@ function renderMazeStep() {
     redrawMazeActors();
     if (pr === goal.r && pc === goal.c) {
       mazeFinished = true;
-      nodes.hintText.textContent = "Bravo — medo je stigao do mede! 🎉";
+      nodes.hintText.textContent = "Bravo — djevočica je stigala do mede! 🎉";
       pulseSuccess();
-      setTimeout(moveToNextStep, 700);
+      scheduleNextStep();
     }
   }
 
@@ -613,48 +872,6 @@ function renderMazeStep() {
   state._mazeKeyHandler = onKey;
 }
 
-function revokePuzzleUrl() {
-  if (state.puzzleObjectUrl) {
-    URL.revokeObjectURL(state.puzzleObjectUrl);
-    state.puzzleObjectUrl = null;
-  }
-}
-
-function makeDemoPuzzleDataUrl() {
-  const size = PUZZLE_EXPORT_PX;
-  const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
-  const ctx = c.getContext("2d");
-  const g = ctx.createLinearGradient(0, 0, size, size);
-  g.addColorStop(0, "#ffe4ef");
-  g.addColorStop(0.5, "#ffc9e0");
-  g.addColorStop(1, "#ff9ec8");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  for (let i = 0; i < 12; i += 1) {
-    ctx.beginPath();
-    ctx.arc(
-      Math.random() * size,
-      Math.random() * size,
-      8 + Math.random() * 18,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-  }
-  ctx.fillStyle = "#c66087";
-  const fs = Math.round(size * 0.07);
-  ctx.font = `bold ${fs}px Quicksand, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("❤", size / 2, size / 2 - fs * 0.6);
-  ctx.font = `600 ${Math.round(fs * 0.55)}px Quicksand, sans-serif`;
-  ctx.fillText("Naša slika", size / 2, size / 2 + fs * 0.75);
-  return c.toDataURL("image/png");
-}
-
 function drawImageSquareCover(ctx, img, size) {
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
@@ -662,27 +879,6 @@ function drawImageSquareCover(ctx, img, size) {
   const sx = (iw - side) / 2;
   const sy = (ih - side) / 2;
   ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
-}
-
-function buildPuzzleFromImageUrl(imageUrl, rootEl, loadId, getActiveLoadId) {
-  const img = new Image();
-  img.onload = () => {
-    if (getActiveLoadId && loadId !== getActiveLoadId()) return;
-    const size = PUZZLE_EXPORT_PX;
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    drawImageSquareCover(ctx, img, size);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
-    if (getActiveLoadId && loadId !== getActiveLoadId()) return;
-    mountPuzzleGrid(dataUrl, rootEl);
-  };
-  img.onerror = () => {
-    if (getActiveLoadId && loadId !== getActiveLoadId()) return;
-    nodes.hintText.textContent = "Ne mogu učitati sliku. Probaj drugu ili demo.";
-  };
-  img.src = imageUrl;
 }
 
 function mountPuzzleGrid(dataUrl, rootEl) {
@@ -797,7 +993,7 @@ function attachPuzzlePieceDrag(wrap, pool, board, n) {
     if (placed >= n * n) {
       nodes.hintText.textContent = "Bravo! Puzzle je složen 🎉";
       pulseSuccess();
-      setTimeout(moveToNextStep, 900);
+      scheduleNextStep();
     } else {
       nodes.hintText.textContent = `Super — još ${n * n - placed} pločica.`;
     }
@@ -844,87 +1040,31 @@ function renderPuzzleStep() {
   const root = document.createElement("div");
   root.className = "puzzle-step";
 
-  const loadSession = { id: 0 };
-  const bumpLoad = () => {
-    loadSession.id += 1;
-    return loadSession.id;
-  };
-  const getLoadId = () => loadSession.id;
-
   const intro = document.createElement("p");
   intro.className = "puzzle-intro";
-  intro.innerHTML =
-    "Učitaj fotografiju ili odaberi <strong>demo</strong> — pločice povlači prstom ili mišem.";
-
-  const controls = document.createElement("div");
-  controls.className = "puzzle-controls";
-
-  const fileLabel = document.createElement("label");
-  fileLabel.className = "puzzle-file-label";
-  fileLabel.textContent = "Učitaj sliku";
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = "image/*";
-  fileInput.className = "puzzle-file-input";
-  fileInput.id = "puzzleFileInput";
-  fileLabel.setAttribute("for", "puzzleFileInput");
-
-  const demoBtn = document.createElement("button");
-  demoBtn.type = "button";
-  demoBtn.className = "secondary-btn puzzle-demo-btn";
-  demoBtn.textContent = "Demo puzzle (bez slike)";
+  intro.textContent = "Povuci pločice na prazna mjesta.";
+  root.appendChild(intro);
 
   const mountHost = document.createElement("div");
   mountHost.className = "puzzle-mount";
   mountHost.id = "puzzleMount";
-
-  controls.appendChild(fileLabel);
-  controls.appendChild(fileInput);
-  controls.appendChild(demoBtn);
-
-  root.appendChild(intro);
-  root.appendChild(controls);
   root.appendChild(mountHost);
   nodes.stepContent.appendChild(root);
 
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) return;
-    const lid = bumpLoad();
-    revokePuzzleUrl();
-    state.puzzleObjectUrl = URL.createObjectURL(file);
-    buildPuzzleFromImageUrl(state.puzzleObjectUrl, mountHost, lid, getLoadId);
-    nodes.hintText.textContent = "Puzzle je spreman — srećno slaganje!";
-  });
-
-  demoBtn.addEventListener("click", () => {
-    bumpLoad();
-    revokePuzzleUrl();
-    fileInput.value = "";
-    mountPuzzleGrid(makeDemoPuzzleDataUrl(), mountHost);
-    nodes.hintText.textContent = "Demo slika — povuci pločice na mrežu.";
-  });
-
-  const presetId = loadSession.id;
   const preset = new Image();
   preset.onload = () => {
-    if (presetId !== loadSession.id) return;
     const canvas = document.createElement("canvas");
     const px = PUZZLE_EXPORT_PX;
     canvas.width = px;
     canvas.height = px;
     const ctx = canvas.getContext("2d");
     drawImageSquareCover(ctx, preset, px);
-    if (presetId !== loadSession.id) return;
     mountPuzzleGrid(canvas.toDataURL("image/jpeg", 0.88), mountHost);
-    nodes.hintText.textContent =
-      "Koristi se slika gift-puzzle.jpg. Možeš je zamijeniti učitavanjem.";
+    nodes.hintText.textContent = "Srećno slaganje!";
   };
   preset.onerror = () => {
-    if (presetId !== loadSession.id) return;
-    mountPuzzleGrid(makeDemoPuzzleDataUrl(), mountHost);
     nodes.hintText.textContent =
-      "Nema gift-puzzle.jpg — demo. Učitaj svoju sliku ili ostavi demo.";
+      "Nedostaje gift-puzzle.jpg u istom folderu kao stranica — dodaj sliku i osvježi.";
   };
   preset.src = "./gift-puzzle.jpg";
 }
@@ -947,7 +1087,7 @@ function renderRateQuiz() {
       } else {
         nodes.hintText.textContent = "Svakako si samo ti 10 od 10";
       }
-      setTimeout(moveToNextStep, 1100);
+      scheduleNextStep();
     });
     row.appendChild(btn);
   }
@@ -983,7 +1123,7 @@ function pulseSuccess() {
 function revealGift() {
   nodes.bigReveal.classList.remove("hidden");
   nodes.finalHeadline.textContent =
-    "Ovaj poklon je moje srce i sva moja ljubav prema tebi.";
+    "";
   runConfetti();
 }
 
@@ -1032,44 +1172,6 @@ function runConfetti() {
     if (frames < 220) requestAnimationFrame(draw);
   }
   draw();
-}
-
-function toggleMusic() {
-  state.musicOn = !state.musicOn;
-  nodes.musicBtn.textContent = `Muzika: ${state.musicOn ? "uključena" : "isključena"}`;
-
-  if (!state.audioContext) {
-    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
-
-  if (state.musicOn) {
-    playSoftLoop();
-  } else {
-    clearInterval(state.musicTimer);
-  }
-}
-
-function playSoftLoop() {
-  const notes = [261.63, 329.63, 392, 329.63];
-  let idx = 0;
-  clearInterval(state.musicTimer);
-
-  state.musicTimer = setInterval(() => {
-    if (!state.musicOn) return;
-    const osc = state.audioContext.createOscillator();
-    const gain = state.audioContext.createGain();
-    osc.type = "sine";
-    osc.frequency.value = notes[idx % notes.length];
-    gain.gain.value = 0.0001;
-    gain.gain.exponentialRampToValueAtTime(0.05, state.audioContext.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, state.audioContext.currentTime + 0.6);
-
-    osc.connect(gain);
-    gain.connect(state.audioContext.destination);
-    osc.start();
-    osc.stop(state.audioContext.currentTime + 0.62);
-    idx += 1;
-  }, 650);
 }
 
 init();
